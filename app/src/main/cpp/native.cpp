@@ -29,11 +29,12 @@ uint16_t width, height;
 
 // this represents the main camera device object
 static std::unique_ptr<ICameraDevice> cameraDevice;
+Point3f retro;
 
 class MyListener : public IDepthDataListener
 {
     Mat cameraMatrix, distortionCoefficients;
-    Mat zImage, grayImage;
+    Mat zImage, grayImage, binaryImage;
 
     mutex flagMutex;
     Mat drawing, norm;
@@ -130,12 +131,25 @@ class MyListener : public IDepthDataListener
     void onNewData (const DepthData *data)
     {
         lock_guard<mutex> lock (flagMutex);
+        float sumX = 0.0f, sumY = 0.0f, sumZ = 0.0f;
+        int count = 0;
+        for(int k = 0; k < width*height; k++){
+            auto curPoint = data->points.at(k);
+            // retro screen has high gray values, take only the depth of these high gray pixels.
+            if (curPoint.grayValue > 600 && curPoint.z > 0) { // z>0 to eliminate saturated gray values
+                sumX += curPoint.x;
+                sumY += curPoint.y;
+                sumZ += curPoint.z;
+                count++;
+            }
+        }
 
-        //getDepthImage(data, zImage);
-        //transferImageToJavaSide(zImage);
-
-        getGrayImage(data, grayImage);
-        transferImageToJavaSide(grayImage);
+        if(count != 0){
+            retro.x = sumX / count;
+            retro.y = sumY / count;
+            retro.z = sumZ / count;
+            LOGI("Retro x=%.3fm y=%.3fm z=%.3fm", retro.x, retro.y, retro.z);
+        }
     }
 
 public :
@@ -167,8 +181,9 @@ public :
 
     void initialize(){
         //zImage.create (Size (width,height), CV_32FC1);
-        grayImage.create (Size (width,height), CV_16UC1);
+        //grayImage.create (Size (width,height), CV_16UC1);
         //drawing = Mat::zeros(height, width, CV_8UC3);
+        retro = Point3f();
     }
 
 };
