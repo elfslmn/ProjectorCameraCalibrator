@@ -53,7 +53,7 @@ public class MainActivity extends Activity {
     Point marker;
 
     private ImageView mainImView;
-    Button buttonAdd;
+    Button buttonAdd, buttonCalib;
     TextView tvDebug;
 
     boolean cam_opened, capturing=false;
@@ -72,6 +72,7 @@ public class MainActivity extends Activity {
     public native void RegisterCallback();
     public native void ChangeModeNative(int mode);
     public native int AddPointNative(int x, int y);
+    public native boolean CalibrateNative();
 
     //broadcast receiver for user usb permission dialog
     private final BroadcastReceiver mUsbReceiver = new BroadcastReceiver() {
@@ -164,6 +165,7 @@ public class MainActivity extends Activity {
                 ChangeModeNative(1);
                 currentMode = Mode.CAMERA;
                 Log.i(LOG_TAG, "Mode changed: CAMERA");
+                buttonCalib.setVisibility(View.GONE);
                 buttonAdd.setVisibility(View.GONE);
                 tvDebug.setText("Mode: CAMERA");
             }
@@ -184,6 +186,7 @@ public class MainActivity extends Activity {
                     bmpPr = Bitmap.createBitmap(displaySize.x, displaySize.y, Bitmap.Config.ARGB_8888);
                 }
                 buttonAdd.setVisibility(View.VISIBLE);
+                buttonCalib.setVisibility(View.VISIBLE);
                 tvDebug.setText("Mode: PROJECT");
             }
         });
@@ -202,6 +205,14 @@ public class MainActivity extends Activity {
                 }else{
                     tvDebug.setText("There is no retro found. Point cannot be added.");
                 }
+            }
+        });
+
+        buttonCalib = findViewById(R.id.buttonCalib);
+        buttonCalib.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                boolean res = CalibrateNative();
             }
         });
 

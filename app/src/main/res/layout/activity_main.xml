@@ -44,6 +44,17 @@
         android:text="Add"
         android:visibility="gone"/>
 
+    <Button
+        android:id="@+id/buttonCalib"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignBaseline="@+id/buttonAdd"
+        android:layout_alignBottom="@+id/buttonAdd"
+        android:layout_toStartOf="@+id/buttonAdd"
+        android:alpha="0.5"
+        android:text="Calibrate"
+        android:visibility="gone" />
+
     <TextView
         android:id="@+id/textViewDebug"
         android:layout_width="wrap_content"

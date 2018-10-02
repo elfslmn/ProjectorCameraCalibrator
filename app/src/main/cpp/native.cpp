@@ -40,6 +40,47 @@ struct Match{
     Point2i proj;
 };
 vector<Match> matches;
+Mat x;
+
+bool calibrate(){
+    int n = matches.size();
+    if(n<6){
+        LOGE("You need more than 6 points to calibrate");
+        return false;
+    }
+    Mat A = Mat::zeros(2*n, 11, CV_32FC1);
+    Mat y = Mat(2*n, 1, CV_32FC1);
+    for(int i = 0; i<n; i++){
+        Match m = matches[i];
+        A.at<float>(i,0) = m.cam.x;
+        A.at<float>(i,1) = m.cam.y;
+        A.at<float>(i,2) = m.cam.z;
+        A.at<float>(i,3) = 1;
+        A.at<float>(i,8) = m.cam.x * m.proj.x*-1;
+        A.at<float>(i,9) = m.cam.y* m.proj.x*-1;
+        A.at<float>(i,10) = m.cam.z* m.proj.x*-1;
+
+        A.at<float>(i+1,4) = m.cam.x;
+        A.at<float>(i+1,5) = m.cam.y;
+        A.at<float>(i+1,6) = m.cam.z;
+        A.at<float>(i+1,7) = 1;
+        A.at<float>(i+1,8) = m.cam.x * m.proj.y*-1;
+        A.at<float>(i+1,9) = m.cam.y* m.proj.y*-1;
+        A.at<float>(i+1,10) = m.cam.z* m.proj.y*-1;
+
+        y.at<int>(i,0) = m.proj.x;
+        y.at<int>(i+1,0) =m.proj.y;
+    }
+    solve(A, y, x, DECOMP_QR );
+
+    ostringstream stream;
+    stream << "x: ";
+    for(int i=0; i<11; i++){
+        stream << x.at<float>(i,0)<<",";
+    }
+    LOGI("%s", stream.str().c_str());
+    return true;
+}
 
 class MyListener : public IDepthDataListener
 {
@@ -444,6 +485,11 @@ jint Java_com_esalman17_calibrator_MainActivity_AddPointNative (JNIEnv *env, job
     matches.push_back(m);
     LOGI("Point added\t Camera: x=%.3fm y=%.3fm z=%.3fm\t Projector: x=%d y=%d", retro.x, retro.y, retro.z, x,y);
     return (jint)matches.size();
+}
+
+jboolean Java_com_esalman17_calibrator_MainActivity_CalibrateNative (JNIEnv *env, jobject thiz)
+{
+    return (jboolean)calibrate();
 }
 
 #ifdef __cplusplus
