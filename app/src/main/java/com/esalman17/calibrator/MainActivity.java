@@ -24,6 +24,7 @@ import android.widget.ImageView;
 import android.graphics.Bitmap;
 import android.graphics.Point;
 import android.view.Display;
+import android.widget.TextView;
 
 import java.util.HashMap;
 import java.util.Iterator;
@@ -53,6 +54,7 @@ public class MainActivity extends Activity {
 
     private ImageView mainImView;
     Button buttonAdd;
+    TextView tvDebug;
 
     boolean cam_opened, capturing=false;
 
@@ -69,6 +71,7 @@ public class MainActivity extends Activity {
     public native boolean StopCaptureNative();
     public native void RegisterCallback();
     public native void ChangeModeNative(int mode);
+    public native int AddPointNative(int x, int y);
 
     //broadcast receiver for user usb permission dialog
     private final BroadcastReceiver mUsbReceiver = new BroadcastReceiver() {
@@ -127,6 +130,7 @@ public class MainActivity extends Activity {
         red.setStyle(Paint.Style.FILL_AND_STROKE);
         red.setStrokeWidth(3);
 
+        tvDebug = findViewById(R.id.textViewDebug);
         mainImView =  findViewById(R.id.imageViewMain);
         mainImView.setOnTouchListener(new View.OnTouchListener() {
             @Override
@@ -161,6 +165,7 @@ public class MainActivity extends Activity {
                 currentMode = Mode.CAMERA;
                 Log.i(LOG_TAG, "Mode changed: CAMERA");
                 buttonAdd.setVisibility(View.GONE);
+                tvDebug.setText("Mode: CAMERA");
             }
         });
 
@@ -179,6 +184,7 @@ public class MainActivity extends Activity {
                     bmpPr = Bitmap.createBitmap(displaySize.x, displaySize.y, Bitmap.Config.ARGB_8888);
                 }
                 buttonAdd.setVisibility(View.VISIBLE);
+                tvDebug.setText("Mode: PROJECT");
             }
         });
 
@@ -186,7 +192,16 @@ public class MainActivity extends Activity {
         buttonAdd.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-
+                if(marker == null){
+                    tvDebug.setText("Click somewhere in the screen");
+                    return;
+                }
+                int res = AddPointNative(marker.x, marker.y);
+                if(res>0){
+                    tvDebug.setText("New point is added. TOTAL: " + res +" points");
+                }else{
+                    tvDebug.setText("There is no retro found. Point cannot be added.");
+                }
             }
         });
 

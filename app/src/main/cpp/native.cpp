@@ -27,21 +27,26 @@ jmethodID m_amplitudeCallbackID;
 jobject m_obj;
 
 uint16_t width, height;
+mutex flagMutex;
 
 // this represents the main camera device object
 static std::unique_ptr<ICameraDevice> cameraDevice;
 Point3f retro;
 
 enum Mode {UNKNOWN, CAMERA, PROJECT, TEST};
-Mode curmode;
+Mode currentMode;
 
+struct Match{
+    Point3f cam;
+    Point2i proj;
+};
+vector<Match> matches;
 
 class MyListener : public IDepthDataListener
 {
     Mat cameraMatrix, distortionCoefficients;
     Mat zImage, grayImage, binaryImage;
 
-    mutex flagMutex;
     Mat drawing, norm;
 
     const float MAX_DISTANCE = 1.0f;
@@ -139,7 +144,7 @@ class MyListener : public IDepthDataListener
         int k = image.rows * image.cols -1 ; // to reverse scrren
         for (int y = 0; y < image.rows; y++)
         {
-            uint16_t *gRowPtr = grayImage.ptr<uint16_t> (y);
+            uint16_t *gRowPtr = image.ptr<uint16_t> (y);
             for (int x = 0; x < image.cols; x++, k--)
             {
                 auto curPoint = data->points.at (k);
@@ -171,14 +176,19 @@ class MyListener : public IDepthDataListener
             }
         }
 
-        if(count != 0){
+        if(count == 0){
+            retro.x = .0;
+            retro.y = .0;
+            retro.z = .0;
+        }
+        else{
             retro.x = sumX / count;
             retro.y = sumY / count;
             retro.z = sumZ / count;
-            LOGD("Retro x=%.3fm y=%.3fm z=%.3fm", retro.x, retro.y, retro.z);
+            //LOGD("Retro x=%.3fm y=%.3fm z=%.3fm", retro.x, retro.y, retro.z);
         }
 
-        if(curmode == CAMERA){
+        if(currentMode == CAMERA){
             transferGrayData(data);
         }
     }
@@ -214,7 +224,7 @@ public :
         //zImage.create (Size (width,height), CV_32FC1);
         //grayImage.create (Size (width,height), CV_16UC1);
         //drawing = Mat::zeros(height, width, CV_8UC3);
-        retro = Point3f();
+        retro = Point3f(.0,.0,.0);
     }
 
     void setMode(int i){
@@ -222,19 +232,19 @@ public :
         switch(i)
         {
             case 1:
-                curmode = CAMERA;
+                currentMode = CAMERA;
                 LOGD("Mode: CAMERA");
                 break;
             case 2:
-                curmode = PROJECT;
+                currentMode = PROJECT;
                 LOGD("Mode: PROJECT");
                 break;
             case 3:
-                curmode = TEST;
+                currentMode = TEST;
                 LOGD("Mode: TEST");
                 break;
             default:
-                curmode = UNKNOWN;
+                currentMode = UNKNOWN;
                 LOGD("Mode: UNKNOWN (%d)", i);
                 break;
         }
@@ -420,9 +430,21 @@ jboolean Java_com_esalman17_calibrator_MainActivity_StopCaptureNative (JNIEnv *e
     return (jboolean)true;
 }
 
-void Java_com_esalman17_calibrator_MainActivity_ChangeModeNative (JNIEnv *env, jobject thiz, jint m)
+void Java_com_esalman17_calibrator_MainActivity_ChangeModeNative (JNIEnv *env, jobject thiz, jint mode)
 {
-    listener.setMode(m);
+    listener.setMode(mode);
+}
+jint Java_com_esalman17_calibrator_MainActivity_AddPointNative (JNIEnv *env, jobject thiz, jint x, jint y)
+{
+    lock_guard<mutex> lock (flagMutex);
+    if(retro.z == 0){
+        LOGE ("No retro found to add matched points");
+        return (jint)-1;
+    }
+    Match m = {retro, Point2i(x,y)};
+    matches.push_back(m);
+    LOGI("Point added\t Camera: x=%.3fm y=%.3fm z=%.3fm\t Projector: x=%d y=%d", retro.x, retro.y, retro.z, x,y);
+    return (jint)matches.size();
 }
 
 #ifdef __cplusplus
