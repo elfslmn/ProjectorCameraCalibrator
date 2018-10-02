@@ -7,7 +7,6 @@
 #include <chrono>
 #include <mutex>
 #include "opencv2/opencv.hpp"
-#include <Shape.h>
 
 #ifdef __cplusplus
 extern "C"
