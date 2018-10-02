@@ -16,6 +16,7 @@ extern "C"
 
 #define LOGI(...) ((void)__android_log_print(ANDROID_LOG_INFO, "Native", __VA_ARGS__))
 #define LOGE(...) ((void)__android_log_print(ANDROID_LOG_ERROR, "Native", __VA_ARGS__))
+#define LOGD(...) ((void)__android_log_print(ANDROID_LOG_DEBUG, "Native", __VA_ARGS__))
 
 using namespace royale;
 using namespace std;
@@ -31,6 +32,10 @@ uint16_t width, height;
 static std::unique_ptr<ICameraDevice> cameraDevice;
 Point3f retro;
 
+enum Mode {UNKNOWN, CAMERA, PROJECT, TEST};
+Mode curmode;
+
+
 class MyListener : public IDepthDataListener
 {
     Mat cameraMatrix, distortionCoefficients;
@@ -41,7 +46,7 @@ class MyListener : public IDepthDataListener
 
     const float MAX_DISTANCE = 1.0f;
 
-    void transferImageToJavaSide(Mat& image)
+    void transferImage(const Mat& image)
     {
         jint fill[image.rows * image.cols];
         if(image.type() == 16) // CV_8UC3
@@ -50,7 +55,7 @@ class MyListener : public IDepthDataListener
             int k = 0;
             for (int i = 0; i < image.rows; i++)
             {
-                Vec3b *ptr = image.ptr<Vec3b>(i);
+                const Vec3b *ptr = image.ptr<Vec3b>(i);
                 for (int j = 0; j < image.cols; j++, k++)
                 {
                     Vec3b p = ptr[j];
@@ -87,6 +92,28 @@ class MyListener : public IDepthDataListener
         env->CallVoidMethod(m_obj, m_amplitudeCallbackID, intArray);
         m_vm->DetachCurrentThread();
     }
+
+    void transferGrayData(const DepthData* data)
+     {
+         int gray[ width * height];
+         for (int i = 0; i < width * height; i++) {
+             // use min value and span to have values between 0 and 255 (for visualisation)
+             gray[i] = (int) (data->points.at(width * height - i -1).grayValue / 2.0f);
+             if (gray[i] > 255) gray[i] = 255; // prevent exceed 255
+
+             // set same value for red, green and blue; alpha to 255; to create gray image
+             gray[i] = gray[i] | gray[i] << 8 | gray[i] << 16 | 255 << 24;
+         }
+         // attach to the JavaVM thread and get a JNI interface pointer
+         JNIEnv *env;
+         m_vm->AttachCurrentThread((JNIEnv **) &env, NULL);
+         jintArray intGrayArray = env->NewIntArray(width * height);
+         env->SetIntArrayRegion(intGrayArray, 0, width * height, gray);
+         // trigger callback function in activity
+         env->CallVoidMethod(m_obj, m_amplitudeCallbackID, intGrayArray);
+         m_vm->DetachCurrentThread();
+     }
+
 
     void getDepthImage(const DepthData* data, Mat& image ){
         int k = image.rows * image.cols -1 ; // to reverse scrren
@@ -148,7 +175,11 @@ class MyListener : public IDepthDataListener
             retro.x = sumX / count;
             retro.y = sumY / count;
             retro.z = sumZ / count;
-            LOGI("Retro x=%.3fm y=%.3fm z=%.3fm", retro.x, retro.y, retro.z);
+            LOGD("Retro x=%.3fm y=%.3fm z=%.3fm", retro.x, retro.y, retro.z);
+        }
+
+        if(curmode == CAMERA){
+            transferGrayData(data);
         }
     }
 
@@ -184,6 +215,29 @@ public :
         //grayImage.create (Size (width,height), CV_16UC1);
         //drawing = Mat::zeros(height, width, CV_8UC3);
         retro = Point3f();
+    }
+
+    void setMode(int i){
+        lock_guard<mutex> lock (flagMutex);
+        switch(i)
+        {
+            case 1:
+                curmode = CAMERA;
+                LOGD("Mode: CAMERA");
+                break;
+            case 2:
+                curmode = PROJECT;
+                LOGD("Mode: PROJECT");
+                break;
+            case 3:
+                curmode = TEST;
+                LOGD("Mode: TEST");
+                break;
+            default:
+                curmode = UNKNOWN;
+                LOGD("Mode: UNKNOWN (%d)", i);
+                break;
+        }
     }
 
 };
@@ -360,10 +414,15 @@ jboolean Java_com_esalman17_calibrator_MainActivity_StopCaptureNative (JNIEnv *e
     auto ret = cameraDevice->stopCapture();
     if (ret != CameraStatus::SUCCESS)
     {
-        LOGE ("Failed to start capture, CODE %d", (int) ret);
+        LOGE ("Failed to stop capture, CODE %d", (int) ret);
         return (jboolean)false;
     }
     return (jboolean)true;
+}
+
+void Java_com_esalman17_calibrator_MainActivity_ChangeModeNative (JNIEnv *env, jobject thiz, jint m)
+{
+    listener.setMode(m);
 }
 
 #ifdef __cplusplus

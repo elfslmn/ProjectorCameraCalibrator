@@ -1,5 +1,6 @@
 package com.esalman17.calibrator;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
@@ -7,12 +8,18 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.ActivityInfo;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.Paint;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbManager;
+import android.icu.text.Normalizer2;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.MotionEvent;
 import android.view.View;
+import android.widget.Button;
 import android.widget.ImageView;
 import android.graphics.Bitmap;
 import android.graphics.Point;
@@ -20,6 +27,12 @@ import android.view.Display;
 
 import java.util.HashMap;
 import java.util.Iterator;
+
+enum Mode{
+    CAMERA,
+    PROJECT,
+    TEST,
+}
 
 public class MainActivity extends Activity {
 
@@ -33,22 +46,29 @@ public class MainActivity extends Activity {
     private UsbManager manager;
     private UsbDeviceConnection usbConnection;
 
-    private Bitmap bmpCam = null;
+    private Bitmap bmpCam = null, bmpPr = null;
+    Paint green = new Paint();
+    Paint red = new Paint();
+    Point marker;
+
     private ImageView mainImView;
+    Button buttonAdd;
 
     boolean cam_opened, capturing=false;
 
     private static final String LOG_TAG = "MainActivity";
     private static final String ACTION_USB_PERMISSION = "ACTION_ROYALE_USB_PERMISSION";
 
-    int scaleFactor;
     int[] resolution;
     Point displaySize, camRes;
+
+    Mode currentMode = Mode.CAMERA;
 
     public native int[] OpenCameraNative(int fd, int vid, int pid);
     public native boolean StartCaptureNative();
     public native boolean StopCaptureNative();
     public native void RegisterCallback();
+    public native void ChangeModeNative(int mode);
 
     //broadcast receiver for user usb permission dialog
     private final BroadcastReceiver mUsbReceiver = new BroadcastReceiver() {
@@ -71,6 +91,7 @@ public class MainActivity extends Activity {
         }
     };
 
+    @SuppressLint("ClickableViewAccessibility")
     @Override
     public void onCreate(Bundle savedInstanceState) {
         Log.d(LOG_TAG, "onCreate()");
@@ -100,23 +121,72 @@ public class MainActivity extends Activity {
             }
         });
 
-        mainImView =  findViewById(R.id.imageViewMain);
-        findViewById(R.id.buttonCamera).setOnClickListener(new View.OnClickListener() {
+        green.setColor(Color.GREEN);
+        green.setStyle(Paint.Style.FILL);
+        red.setColor(Color.RED);
+        red.setStyle(Paint.Style.FILL_AND_STROKE);
+        red.setStrokeWidth(3);
 
+        mainImView =  findViewById(R.id.imageViewMain);
+        mainImView.setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View view, MotionEvent event) {
+                if(currentMode != Mode.PROJECT){
+                    return false;
+                }
+                switch (event.getAction()) {
+                    case MotionEvent.ACTION_DOWN:
+                        marker = new Point((int) event.getX(), (int) event.getY());
+                        Canvas canvas = new Canvas(bmpPr);
+                        canvas.drawColor(0xFF000000);
+                        int radius = 40;
+                        canvas.drawCircle(marker.x, marker.y, radius, green);
+                        canvas.drawLine(marker.x-radius, marker.y, marker.x+radius, marker.y, red);
+                        canvas.drawLine(marker.x, marker.y-radius, marker.x, marker.y+radius, red);
+                        mainImView.setImageBitmap(bmpPr);
+                        break;
+                }
+                return true;
+            }
+        });
+
+        findViewById(R.id.buttonCamera).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 if(!cam_opened) {
                     openCamera();
                 }
-                if(cam_opened && !capturing){
-                   if(StartCaptureNative()){
-                       capturing = true;
-                       Log.d(LOG_TAG, "Camera is capturing");
-                   }
-                   else{
-                       capturing = false;
-                   }
+                if(!capturing) startCapture();
+                ChangeModeNative(1);
+                currentMode = Mode.CAMERA;
+                Log.i(LOG_TAG, "Mode changed: CAMERA");
+                buttonAdd.setVisibility(View.GONE);
+            }
+        });
+
+        findViewById(R.id.buttonProject).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                if(!cam_opened) {
+                    openCamera();
                 }
+                if(!capturing) startCapture();
+                ChangeModeNative(2);
+                currentMode = Mode.PROJECT;
+                Log.i(LOG_TAG, "Mode changed: PROJECT");
+
+                if (bmpPr == null) {
+                    bmpPr = Bitmap.createBitmap(displaySize.x, displaySize.y, Bitmap.Config.ARGB_8888);
+                }
+                buttonAdd.setVisibility(View.VISIBLE);
+            }
+        });
+
+        buttonAdd = findViewById(R.id.buttonAdd);
+        buttonAdd.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+
             }
         });
 
@@ -141,19 +211,11 @@ public class MainActivity extends Activity {
         Log.d(LOG_TAG, "onResume()");
         registerReceiver(mUsbReceiver, new IntentFilter(ACTION_USB_PERMISSION));
 
-        if(cam_opened && !capturing){
-            if(StartCaptureNative()){
-                capturing = true;
-                Log.d(LOG_TAG, "Camera is capturing");
-            }
-            else{
-                capturing = false;
-            }
-        }
-
         displaySize = new Point();
         getWindowManager().getDefaultDisplay().getRealSize(displaySize);
         Log.i(LOG_TAG, "Window display size: x=" + displaySize.x + ", y=" + displaySize.y);
+
+        if(cam_opened) startCapture();
     }
 
     @Override
@@ -217,6 +279,7 @@ public class MainActivity extends Activity {
         int fd = usbConnection.getFileDescriptor();
 
         resolution = OpenCameraNative(fd, device.getVendorId(), device.getProductId());
+        Log.d(LOG_TAG, "Camera resolution: width="+resolution[0]+" height="+resolution[1]);
         camRes = new Point(resolution[0], resolution[1]);
 
         if (resolution[0] > 0) {
@@ -224,15 +287,19 @@ public class MainActivity extends Activity {
         }
     }
 
+    public void startCapture() {
+        if(cam_opened ){
+            if(StartCaptureNative()){
+                capturing = true;
+                Log.d(LOG_TAG, "Camera is capturing");
+            }
+            else{
+                capturing = false;
+            }
+        }
+    }
+
     private void createBitmap() {
-
-        // calculate scale factor, which scales the bitmap relative to the display resolution
-        Display display = getWindowManager().getDefaultDisplay();
-        Point size = new Point();
-        display.getSize(size);
-        double displayWidth = size.x * 0.9;
-        scaleFactor = (int) displayWidth / resolution[0];
-
         if (bmpCam == null) {
             bmpCam = Bitmap.createBitmap(resolution[0], resolution[1], Bitmap.Config.ARGB_8888);
         }
@@ -244,14 +311,19 @@ public class MainActivity extends Activity {
             Log.d(LOG_TAG, "Device in Java not initialized");
             return;
         }
-        bmpCam.setPixels(amplitudes, 0, resolution[0], 0, 0, resolution[0], resolution[1]);
-
-        runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                mainImView.setImageBitmap(bmpCam);
+        if(currentMode == Mode.CAMERA){
+            if(bmpCam == null){
+                createBitmap();
             }
-        });
+            bmpCam.setPixels(amplitudes, 0, resolution[0], 0, 0, resolution[0], resolution[1]);
+
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    mainImView.setImageBitmap(bmpCam);
+                }
+            });
+        }
     }
 
 
