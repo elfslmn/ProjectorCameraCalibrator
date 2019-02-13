@@ -22,7 +22,7 @@ using namespace std;
 using namespace cv;
 
 JavaVM *m_vm;
-jmethodID m_amplitudeCallbackID;
+jmethodID m_amplitudeCallbackID, m_testCallbackID;
 jobject m_obj;
 
 uint16_t width, height;
@@ -40,7 +40,7 @@ struct Match{
     Point2i proj;
 };
 vector<Match> matches;
-Mat x;
+Mat matrix;
 
 bool calibrate(){
     int n = matches.size();
@@ -68,17 +68,26 @@ bool calibrate(){
         A.at<float>(i+1,9) = m.cam.y* m.proj.y*-1;
         A.at<float>(i+1,10) = m.cam.z* m.proj.y*-1;
 
-        y.at<int>(i,0) = m.proj.x;
-        y.at<int>(i+1,0) =m.proj.y;
+        y.at<float>(i,0) = m.proj.x;
+        y.at<float>(i+1,0) =m.proj.y;
     }
-    solve(A, y, x, DECOMP_QR );
+    solve(A, y, matrix, DECOMP_QR );
 
     ostringstream stream;
     stream << "x: ";
     for(int i=0; i<11; i++){
-        stream << x.at<float>(i,0)<<",";
+        stream << matrix.at<float>(i,0)<<",";
     }
     LOGI("%s", stream.str().c_str());
+    LOGI("Matrix size row = %d, cols=%d, type=%d", matrix.rows, matrix.cols, matrix.type());
+
+    for(int i = 0; i<n; i++){
+        Match m = matches[i];
+        float denom = matrix.at<float>(8, 0)*m.cam.x + matrix.at<float>(9, 0)*m.cam.y + matrix.at<float>(10, 0)*m.cam.z + 1;
+        int projx = (int)((matrix.at<float>(0, 0)*m.cam.x + matrix.at<float>(1, 0)*m.cam.y + matrix.at<float>(2, 0)*m.cam.z + matrix.at<float>(3, 0)) / denom );
+        int projy = (int)((matrix.at<float>(4, 0)*m.cam.x + matrix.at<float>(5, 0)*m.cam.y + matrix.at<float>(6, 0)*m.cam.z + matrix.at<float>(7, 0)) / denom );
+        LOGI("%d- Original %d,%d\t Reprojected: %d,%d\t Diff: %d,%d",i+1, m.proj.x, m.proj.y, projx, projy, m.proj.x-projx, m.proj.y-projy);
+    }
     return true;
 }
 
@@ -90,6 +99,20 @@ class MyListener : public IDepthDataListener
     Mat drawing, norm;
 
     const float MAX_DISTANCE = 1.0f;
+
+    void projectCamPoint(Point3f cam){
+        //if(x == nullptr) return
+        LOGD("Retro x=%.3fm y=%.3fm z=%.3fm", cam.x, cam.y, cam.z);
+        float denom = matrix.at<float>(8, 0)*cam.x + matrix.at<float>(9, 0)*cam.y + matrix.at<float>(10, 0)*cam.z + 1;
+        int projx = (int)((matrix.at<float>(0, 0)*cam.x + matrix.at<float>(1, 0)*cam.y + matrix.at<float>(2, 0)*cam.z + matrix.at<float>(3, 0)) / denom );
+        int projy = (int)((matrix.at<float>(4, 0)*cam.x + matrix.at<float>(5, 0)*cam.y + matrix.at<float>(6, 0)*cam.z + matrix.at<float>(7, 0)) / denom );
+        LOGD("Projector x=%d y=%d", projx, projy);
+
+        JNIEnv *env;
+        m_vm->AttachCurrentThread((JNIEnv **) &env, NULL);
+        env->CallVoidMethod(m_obj, m_testCallbackID, (jint)projx, (jint)projy);
+        m_vm->DetachCurrentThread();
+    }
 
     void transferImage(const Mat& image)
     {
@@ -222,14 +245,17 @@ class MyListener : public IDepthDataListener
             retro.z = .0;
         }
         else{
-            retro.x = sumX / count;
-            retro.y = sumY / count;
-            retro.z = sumZ / count;
+            retro.x = sumX / count*1000;
+            retro.y = sumY / count*1000;
+            retro.z = sumZ / count*1000;
             //LOGD("Retro x=%.3fm y=%.3fm z=%.3fm", retro.x, retro.y, retro.z);
         }
 
         if(currentMode == CAMERA){
             transferGrayData(data);
+        }
+        else if(currentMode == TEST && retro.z!=0){
+            projectCamPoint(retro);
         }
     }
 
@@ -436,6 +462,7 @@ void Java_com_esalman17_calibrator_MainActivity_RegisterCallback (JNIEnv *env, j
 
     // save method ID to call the method later in the listener
     m_amplitudeCallbackID = env->GetMethodID (g_class, "amplitudeCallback", "([I)V");
+    m_testCallbackID = env->GetMethodID (g_class, "testCallback", "(II)V");
 }
 
 jboolean Java_com_esalman17_calibrator_MainActivity_StartCaptureNative (JNIEnv *env, jobject thiz)
@@ -483,7 +510,8 @@ jint Java_com_esalman17_calibrator_MainActivity_AddPointNative (JNIEnv *env, job
     }
     Match m = {retro, Point2i(x,y)};
     matches.push_back(m);
-    LOGI("Point added\t Camera: x=%.3fm y=%.3fm z=%.3fm\t Projector: x=%d y=%d", retro.x, retro.y, retro.z, x,y);
+    // LOGI("Point added\t Camera: x=%.3fm y=%.3fm z=%.3fm\t Projector: x=%d y=%d", retro.x, retro.y, retro.z, x,y);
+    LOGI("Point added\t %f, %f, %f,\t %d, %d", retro.x, retro.y, retro.z, x,y);
     return (jint)matches.size();
 }
 

@@ -16,3 +16,5 @@ app/.externalNativeBuild/
 # Gradle files
 .gradle/4.1/
 build/
+
+matches.*

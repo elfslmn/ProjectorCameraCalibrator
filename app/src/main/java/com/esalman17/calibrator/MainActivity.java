@@ -142,6 +142,7 @@ public class MainActivity extends Activity {
                 switch (event.getAction()) {
                     case MotionEvent.ACTION_DOWN:
                         marker = new Point((int) event.getX(), (int) event.getY());
+                        //marker = new Point(displaySize.x -(int) event.getX(), displaySize.y - (int) event.getY());
                         Canvas canvas = new Canvas(bmpPr);
                         canvas.drawColor(0xFF000000);
                         int radius = 40;
@@ -188,6 +189,21 @@ public class MainActivity extends Activity {
                 buttonAdd.setVisibility(View.VISIBLE);
                 buttonCalib.setVisibility(View.VISIBLE);
                 tvDebug.setText("Mode: PROJECT");
+            }
+        });
+
+        findViewById(R.id.buttonTest).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                if(!cam_opened) {
+                    openCamera();
+                }
+                if(!capturing) startCapture();
+                ChangeModeNative(3);
+                currentMode = Mode.TEST;
+                Log.i(LOG_TAG, "Mode changed: TEST");
+                buttonCalib.setVisibility(View.GONE);
+                buttonAdd.setVisibility(View.GONE);
             }
         });
 
@@ -347,6 +363,36 @@ public class MainActivity extends Activity {
                 @Override
                 public void run() {
                     mainImView.setImageBitmap(bmpCam);
+                }
+            });
+        }
+    }
+
+    public void testCallback(int x, int y) {
+        if (!cam_opened)
+        {
+            Log.d(LOG_TAG, "Device in Java not initialized");
+            return;
+        }
+        if(currentMode == Mode.TEST){
+            if (bmpPr == null) {
+                bmpPr = Bitmap.createBitmap(displaySize.x, displaySize.y, Bitmap.Config.ARGB_8888);
+            }
+            if(x<0 || x>displaySize.x || y<0 || y>displaySize.y){
+                Log.i(LOG_TAG,"Point ("+x+","+y+") is outside of projector view");
+                return;
+            }
+            Canvas canvas = new Canvas(bmpPr);
+            canvas.drawColor(0xFF000000);
+            int radius = 40;
+            canvas.drawCircle(x, y, radius, green);
+            canvas.drawLine(x-radius, y, x+radius, y, red);
+            canvas.drawLine(x, y-radius, x, y+radius, red);
+
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    mainImView.setImageBitmap(bmpPr);
                 }
             });
         }
