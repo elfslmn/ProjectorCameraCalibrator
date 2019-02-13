@@ -11,6 +11,7 @@ import android.content.pm.ActivityInfo;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.drawable.Drawable;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbManager;
@@ -25,13 +26,15 @@ import android.graphics.Bitmap;
 import android.graphics.Point;
 import android.view.Display;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.util.HashMap;
 import java.util.Iterator;
 
 enum Mode{
-    CAMERA,
-    PROJECT,
+    DEPTH,
+    GRAY,
+    CALIBRATION,
     TEST,
 }
 
@@ -48,12 +51,11 @@ public class MainActivity extends Activity {
     private UsbDeviceConnection usbConnection;
 
     private Bitmap bmpCam = null, bmpPr = null;
-    Paint green = new Paint();
-    Paint red = new Paint();
-    Point marker;
+    private Drawable pattern;
+    private static Paint white = new Paint();
 
     private ImageView mainImView;
-    Button buttonAdd, buttonCalib;
+    Button buttonAdd, buttonCalc;
     TextView tvDebug;
 
     boolean cam_opened, capturing=false;
@@ -64,15 +66,15 @@ public class MainActivity extends Activity {
     int[] resolution;
     Point displaySize, camRes;
 
-    Mode currentMode = Mode.CAMERA;
+    Mode currentMode = Mode.GRAY;
 
     public native int[] OpenCameraNative(int fd, int vid, int pid);
     public native boolean StartCaptureNative();
     public native boolean StopCaptureNative();
     public native void RegisterCallback();
     public native void ChangeModeNative(int mode);
-    public native int AddPointNative(int x, int y);
-    public native boolean CalibrateNative();
+    public native boolean AddPointNative();
+    public native void CalibrateNative();
 
     //broadcast receiver for user usb permission dialog
     private final BroadcastReceiver mUsbReceiver = new BroadcastReceiver() {
@@ -86,7 +88,9 @@ public class MainActivity extends Activity {
                     if (device != null) {
                         RegisterCallback();
                         performUsbPermissionCallback(device);
-                        createBitmap();
+                        if (bmpCam == null) {
+                            bmpCam = Bitmap.createBitmap(resolution[0], resolution[1], Bitmap.Config.ARGB_8888);
+                        }
                     }
                 } else {
                     System.out.println("permission denied for device" + device);
@@ -125,70 +129,66 @@ public class MainActivity extends Activity {
             }
         });
 
-        green.setColor(Color.GREEN);
-        green.setStyle(Paint.Style.FILL);
-        red.setColor(Color.RED);
-        red.setStyle(Paint.Style.FILL_AND_STROKE);
-        red.setStrokeWidth(3);
+        white.setColor(Color.WHITE);
+        white.setStyle(Paint.Style.STROKE);
+        white.setStrokeWidth(5);
 
+        pattern = getResources().getDrawable(R.drawable.pattern);
+        mainImView = findViewById(R.id.imageViewMain);
         tvDebug = findViewById(R.id.textViewDebug);
-        mainImView =  findViewById(R.id.imageViewMain);
-        mainImView.setOnTouchListener(new View.OnTouchListener() {
-            @Override
-            public boolean onTouch(View view, MotionEvent event) {
-                if(currentMode != Mode.PROJECT){
-                    return false;
-                }
-                switch (event.getAction()) {
-                    case MotionEvent.ACTION_DOWN:
-                        marker = new Point((int) event.getX(), (int) event.getY());
-                        //marker = new Point(displaySize.x -(int) event.getX(), displaySize.y - (int) event.getY());
-                        Canvas canvas = new Canvas(bmpPr);
-                        canvas.drawColor(0xFF000000);
-                        int radius = 40;
-                        canvas.drawCircle(marker.x, marker.y, radius, green);
-                        canvas.drawLine(marker.x-radius, marker.y, marker.x+radius, marker.y, red);
-                        canvas.drawLine(marker.x, marker.y-radius, marker.x, marker.y+radius, red);
-                        mainImView.setImageBitmap(bmpPr);
-                        break;
-                }
-                return true;
-            }
-        });
 
-        findViewById(R.id.buttonCamera).setOnClickListener(new View.OnClickListener() {
+        //--- Click Listeners ---
+        findViewById(R.id.buttonDepth).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                if(!cam_opened) {
+                if(!cam_opened){
                     openCamera();
                 }
-                if(!capturing) startCapture();
+                if(!capturing){
+                    startCapture();
+                }
                 ChangeModeNative(1);
-                currentMode = Mode.CAMERA;
-                Log.i(LOG_TAG, "Mode changed: CAMERA");
-                buttonCalib.setVisibility(View.GONE);
+                currentMode = Mode.DEPTH;
+                buttonCalc.setVisibility(View.GONE);
                 buttonAdd.setVisibility(View.GONE);
-                tvDebug.setText("Mode: CAMERA");
+                tvDebug.setText("Mode: DEPTH");
             }
         });
 
-        findViewById(R.id.buttonProject).setOnClickListener(new View.OnClickListener() {
+        findViewById(R.id.buttonGray).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                if(!cam_opened){
+                    openCamera();
+                }
+                if(!capturing){
+                    startCapture();
+                }
+                ChangeModeNative(2);
+                currentMode = Mode.GRAY;
+                buttonCalc.setVisibility(View.GONE);
+                buttonAdd.setVisibility(View.GONE);
+                tvDebug.setText("Mode: GRAY");
+            }
+        });
+
+        findViewById(R.id.buttonCalib).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 if(!cam_opened) {
                     openCamera();
                 }
-                if(!capturing) startCapture();
-                ChangeModeNative(2);
-                currentMode = Mode.PROJECT;
-                Log.i(LOG_TAG, "Mode changed: PROJECT");
-
-                if (bmpPr == null) {
-                    bmpPr = Bitmap.createBitmap(displaySize.x, displaySize.y, Bitmap.Config.ARGB_8888);
+                if(!capturing){
+                    startCapture();
                 }
+                ChangeModeNative(3);
+                currentMode = Mode.CALIBRATION;
+
+                mainImView.setImageDrawable(pattern);
+
                 buttonAdd.setVisibility(View.VISIBLE);
-                buttonCalib.setVisibility(View.VISIBLE);
-                tvDebug.setText("Mode: PROJECT");
+                buttonCalc.setVisibility(View.VISIBLE);
+                tvDebug.setText("Mode: CALIBRATION");
             }
         });
 
@@ -198,11 +198,13 @@ public class MainActivity extends Activity {
                 if(!cam_opened) {
                     openCamera();
                 }
-                if(!capturing) startCapture();
-                ChangeModeNative(3);
+                if(!capturing){
+                    startCapture();
+                }
+                ChangeModeNative(4);
                 currentMode = Mode.TEST;
                 Log.i(LOG_TAG, "Mode changed: TEST");
-                buttonCalib.setVisibility(View.GONE);
+                buttonCalc.setVisibility(View.GONE);
                 buttonAdd.setVisibility(View.GONE);
             }
         });
@@ -211,27 +213,40 @@ public class MainActivity extends Activity {
         buttonAdd.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                if(marker == null){
-                    tvDebug.setText("Click somewhere in the screen");
-                    return;
+                boolean res = AddPointNative();
+                if(res){
+                    Toast.makeText(getApplicationContext(), "Point is added", Toast.LENGTH_SHORT).show();
                 }
-                int res = AddPointNative(marker.x, marker.y);
-                if(res>0){
-                    tvDebug.setText("New point is added. TOTAL: " + res +" points");
-                }else{
-                    tvDebug.setText("There is no retro found. Point cannot be added.");
+                else{
+                    Toast.makeText(getApplicationContext(), "Point cannot be added", Toast.LENGTH_SHORT).show();
                 }
             }
         });
 
-        buttonCalib = findViewById(R.id.buttonCalib);
-        buttonCalib.setOnClickListener(new View.OnClickListener() {
+        buttonCalc = findViewById(R.id.buttonCalc);
+        buttonCalc.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                boolean res = CalibrateNative();
+                CalibrateNative();
             }
         });
 
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        Log.d(LOG_TAG, "onResume()");
+        registerReceiver(mUsbReceiver, new IntentFilter(ACTION_USB_PERMISSION));
+
+        displaySize = new Point();
+        getWindowManager().getDefaultDisplay().getRealSize(displaySize);
+        // Make sure that is 1280,720
+        Log.i(LOG_TAG, "Window display size: x=" + displaySize.x + ", y=" + displaySize.y);
+
+        if(cam_opened && !capturing){
+            startCapture();
+        }
     }
 
     @Override
@@ -248,22 +263,8 @@ public class MainActivity extends Activity {
     }
 
     @Override
-    protected void onResume() {
-        super.onResume();
-        Log.d(LOG_TAG, "onResume()");
-        registerReceiver(mUsbReceiver, new IntentFilter(ACTION_USB_PERMISSION));
-
-        displaySize = new Point();
-        getWindowManager().getDefaultDisplay().getRealSize(displaySize);
-        Log.i(LOG_TAG, "Window display size: x=" + displaySize.x + ", y=" + displaySize.y);
-
-        if(cam_opened) startCapture();
-    }
-
-    @Override
     protected void onDestroy() {
         Log.d(LOG_TAG, "onDestroy()");
-        //unregisterReceiver(mUsbReceiver);
 
         if(usbConnection != null) {
             usbConnection.close();
@@ -304,7 +305,9 @@ public class MainActivity extends Activity {
                 } else {
                     RegisterCallback();
                     performUsbPermissionCallback(device);
-                    createBitmap();
+                    if (bmpCam == null) {
+                        bmpCam = Bitmap.createBitmap(resolution[0], resolution[1], Bitmap.Config.ARGB_8888);
+                    }
                 }
                 break;
             }
@@ -341,61 +344,63 @@ public class MainActivity extends Activity {
         }
     }
 
-    private void createBitmap() {
-        if (bmpCam == null) {
+    public void amplitudeCallback(int[] amplitudes) {
+        if(currentMode == Mode.CALIBRATION || currentMode == Mode.TEST){
+            // This callback should not be called in this modes
+            return;
+        }
+        if (!cam_opened) {
+            Log.d(LOG_TAG, "Device in Java not initialized");
+            return;
+        }
+
+        if(bmpCam == null){
             bmpCam = Bitmap.createBitmap(resolution[0], resolution[1], Bitmap.Config.ARGB_8888);
         }
+        bmpCam.setPixels(amplitudes, 0, resolution[0], 0, 0, resolution[0], resolution[1]);
+
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                mainImView.setImageBitmap(bmpCam);
+            }
+        });
     }
 
-    public void amplitudeCallback(int[] amplitudes) {
+    public void blobsCallback(final int[] descriptors) {
+        if(currentMode != Mode.TEST){
+            // This callback only be called in test mode
+            return;
+        }
         if (!cam_opened)
         {
             Log.d(LOG_TAG, "Device in Java not initialized");
             return;
         }
-        if(currentMode == Mode.CAMERA){
-            if(bmpCam == null){
-                createBitmap();
-            }
-            bmpCam.setPixels(amplitudes, 0, resolution[0], 0, 0, resolution[0], resolution[1]);
-
-            runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    mainImView.setImageBitmap(bmpCam);
-                }
-            });
+        if (bmpPr == null) {
+            bmpPr = Bitmap.createBitmap(displaySize.x, displaySize.y, Bitmap.Config.ARGB_8888);
         }
-    }
 
-    public void testCallback(int x, int y) {
-        if (!cam_opened)
+        Canvas canvas = new Canvas(bmpPr);
+        canvas.drawColor(0xFF000000); // to clear
+        canvas.drawRect(0,0,1280,720, white);
+
+        int x,y;
+        for (int i = 0; i <= descriptors.length - 2; i += 2)
         {
-            Log.d(LOG_TAG, "Device in Java not initialized");
-            return;
+            x = descriptors[i];
+            y = descriptors[i+1];
+            canvas.drawCircle(x, y, 40, white);
         }
-        if(currentMode == Mode.TEST){
-            if (bmpPr == null) {
-                bmpPr = Bitmap.createBitmap(displaySize.x, displaySize.y, Bitmap.Config.ARGB_8888);
-            }
-            if(x<0 || x>displaySize.x || y<0 || y>displaySize.y){
-                Log.i(LOG_TAG,"Point ("+x+","+y+") is outside of projector view");
-                return;
-            }
-            Canvas canvas = new Canvas(bmpPr);
-            canvas.drawColor(0xFF000000);
-            int radius = 40;
-            canvas.drawCircle(x, y, radius, green);
-            canvas.drawLine(x-radius, y, x+radius, y, red);
-            canvas.drawLine(x, y-radius, x, y+radius, red);
 
-            runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    mainImView.setImageBitmap(bmpPr);
-                }
-            });
-        }
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                mainImView.setImageBitmap(bmpPr);
+            }
+        });
+
+
     }
 
 

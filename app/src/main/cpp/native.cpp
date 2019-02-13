@@ -108,7 +108,10 @@ jintArray Java_com_esalman17_calibrator_MainActivity_OpenCameraNative (JNIEnv *e
     }else{
         calibrator.setLensParameters (lensParams);
     }
+
+    // Set camera and projector values for calibration
     calibrator.setCamera(cam_width, cam_height, 62, 45);
+    calibrator.setProjector(1280, 720, 46.4, 24.2);    // TODO make it generic
 
     // register a data listener
     ret = cameraDevice->registerDataListener (&calibrator);
@@ -166,9 +169,9 @@ void Java_com_esalman17_calibrator_MainActivity_RegisterCallback (JNIEnv *env, j
 
     // save method ID to call the method later in the listener
     jmethodID m_amplitudeCallbackID = env->GetMethodID (g_class, "amplitudeCallback", "([I)V");
-    jmethodID m_shapeDetectedCallbackID = env->GetMethodID (g_class, "shapeDetectedCallback", "([I)V");
+    jmethodID m_blobsCallbackID = env->GetMethodID (g_class, "blobsCallback", "([I)V");
 
-    calibrator.callbackManager = CallbackManager(m_vm, m_obj, m_amplitudeCallbackID, m_shapeDetectedCallbackID);
+    calibrator.callbackManager = CallbackManager(m_vm, m_obj, m_amplitudeCallbackID, m_blobsCallbackID);
 }
 
 jboolean Java_com_esalman17_calibrator_MainActivity_StartCaptureNative (JNIEnv *env, jobject thiz)
@@ -211,14 +214,14 @@ void Java_com_esalman17_calibrator_MainActivity_ChangeModeNative (JNIEnv *env, j
 {
     calibrator.setMode(mode); // TODO chcek the setmode method, java and cpp side can be different
 }
-jint Java_com_esalman17_calibrator_MainActivity_AddPointNative (JNIEnv *env, jobject thiz, jint x, jint y)
+jboolean Java_com_esalman17_calibrator_MainActivity_AddPointNative (JNIEnv *env, jobject thiz)
 {
     return (jboolean)calibrator.saveCamPoint();
 }
 
-jboolean Java_com_esalman17_calibrator_MainActivity_CalibrateNative (JNIEnv *env, jobject thiz)
+void Java_com_esalman17_calibrator_MainActivity_CalibrateNative (JNIEnv *env, jobject thiz)
 {
-    //return (jboolean)calibrate();
+    calibrator.calibrate();
 }
 
 #ifdef __cplusplus

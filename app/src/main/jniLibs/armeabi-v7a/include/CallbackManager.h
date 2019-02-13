@@ -20,7 +20,7 @@ public:
 private:
     JavaVM* m_vm;
     jmethodID m_amplitudeCallbackID;
-    jmethodID m_shapeDetectedCallbackID;
+    jmethodID m_blobsCallbackID;
     jobject m_obj;
 };
 

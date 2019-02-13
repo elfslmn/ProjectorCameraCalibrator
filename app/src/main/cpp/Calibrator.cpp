@@ -33,8 +33,8 @@ void Calibrator::setMode(int i){
             LOGD("Mode: GRAY");
             break;
         case 3:
-            currentMode = PROJECT;
-            LOGD("Mode: PROJECT");
+            currentMode = CALIBRATION;
+            LOGD("Mode: CALIBRATION");
             break;
         case 4:
             currentMode = TEST;
@@ -65,6 +65,8 @@ void Calibrator::onNewData (const DepthData *data)
     if(currentMode == DEPTH){
         vector<Mat> channels(3);
         split(xyzMap, channels);
+        channels[2].at<float>(0,0) = MAX_RANGE;
+        normalize(channels[2], channels[2], 0, 255, NORM_MINMAX, CV_8UC1);
         applyColorMap(channels[2], outputImage, COLORMAP_JET);
         callbackManager.sendImageToJavaSide(outputImage);
         return;
@@ -84,7 +86,7 @@ void Calibrator::onNewData (const DepthData *data)
         }
         callbackManager.sendImageToJavaSide(outputImage);
     }
-    else if (currentMode == PROJECT){
+    else if (currentMode == CALIBRATION){
         // Do nothing
     }
     else if(currentMode == TEST){
@@ -184,9 +186,9 @@ Vec4d Calibrator::calibrate()
     vector<double> x_shift;
     vector<double> y_shift;
     vector<double> depth;
-    ofstream file;
+    /*ofstream file;
     file.open(dataFolder + "/shift.csv");
-    file << "z,x_shift(xp),y_shift(xp)\n";
+    file << "z,x_shift(xp),y_shift(xp)\n";*/
     for(auto cp : cam_points)
     {
         double cam_x = cp.uv_corrected.x * projector.width * x_scale / camera.width - x_offset;
@@ -195,21 +197,21 @@ Vec4d Calibrator::calibrate()
         x_shift.push_back(cam_x - projector.width / 2); // /2 since retro will be center of the projector
         y_shift.push_back(cam_y - projector.height / 2);
         depth.push_back((double)cp.xyz.z);
-        file << cp.xyz.z << "," << cam_x - projector.width / 2 << "," << cam_y - projector.height / 2 << endl;
+        //file << cp.xyz.z << "," << cam_x - projector.width / 2 << "," << cam_y - projector.height / 2 << endl;
     }
-    file.close();
+    //file.close();
 
     auto coeff_x = fitExponential(depth, x_shift);
     auto coeff_y = fitExponential(depth, y_shift);
     calibration_result = Vec4d(coeff_x.first, coeff_x.second, coeff_y.first, coeff_y.second);
 
-    file.open(dataFolder + "/calibration.txt");
+    /*file.open(dataFolder + "/calibration.txt");
     file << "{ ax, bx, ay, by } = " << calibration_result << endl;
     file << "Scale x,y = " << x_scale << " , " << y_scale << endl;
     file << "Offset x,y = " << x_offset << " , " << y_offset << endl;
     file << " Camera: " << camera.width <<" , "<<camera.height<<" , "<<camera.vertical_fov<<" , "<<camera.horizontal_fov << endl;
     file << " Projector: " << projector.width <<" , "<<projector.height<<" , "<<projector.vertical_fov<<" , "<<projector.horizontal_fov << endl;
-    file.close();
+    file.close();*/
 
     return calibration_result;
 }

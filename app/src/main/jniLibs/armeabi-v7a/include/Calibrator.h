@@ -13,6 +13,7 @@ class Calibrator : public CamListener{
     const int RETRO_THRESHOLD = 300;
     const double MAX_RETRO_AREA = 50.0;
     const int MIN_CONFIDENCE = 100;
+    const float MAX_RANGE = 0.5f;
 
     struct CamPoint{
         Point3f xyz;            // in cm
@@ -28,8 +29,8 @@ public:
     string dataFolder = "data";
     Vec4d calibration_result;
 
-    enum Mode {UNKNOWN, DEPTH, GRAY, PROJECT, TEST};
-    Mode currentMode = DEPTH;
+    enum Mode {UNKNOWN, DEPTH, GRAY, CALIBRATION, TEST};
+    Mode currentMode = UNKNOWN;
 
     Device projector; //{1280, 720, 37.6*deg2rad, 21.76*deg2rad};
 

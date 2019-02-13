@@ -7,11 +7,11 @@
 
 CallbackManager::CallbackManager(){}
 
-CallbackManager::CallbackManager(JavaVM* vm, jobject& obj, jmethodID& amplitudeCallbackID, jmethodID& shapeDetectedCallbackID){
+CallbackManager::CallbackManager(JavaVM* vm, jobject& obj, jmethodID& amplitudeCallbackID, jmethodID& blobsCallbackID){
     m_vm = vm;
     m_obj = obj;
     m_amplitudeCallbackID = amplitudeCallbackID;
-    m_shapeDetectedCallbackID = shapeDetectedCallbackID;
+    m_blobsCallbackID =  blobsCallbackID;
 }
 
 void CallbackManager::sendImageToJavaSide(const cv::Mat& image)
@@ -67,6 +67,6 @@ void CallbackManager::onShapeDetected(const std::vector<int> & arr){
     m_vm->AttachCurrentThread(&env, NULL);
     jintArray intArray = env->NewIntArray(arr.size());
     env->SetIntArrayRegion(intArray, 0, arr.size(), &arr[0]);
-    env->CallVoidMethod(m_obj, m_shapeDetectedCallbackID, intArray);
+    env->CallVoidMethod(m_obj, m_blobsCallbackID, intArray);
     m_vm->DetachCurrentThread();
 }

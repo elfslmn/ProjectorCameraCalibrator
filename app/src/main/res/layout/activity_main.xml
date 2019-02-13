@@ -14,56 +14,65 @@
         android:layout_centerVertical="true" />
 
     <Button
-        android:id="@+id/buttonCamera"
+        android:id="@+id/buttonDepth"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_alignParentBottom="true"
         android:layout_alignParentEnd="true"
         android:layout_alignParentRight="true"
         android:alpha="0.5"
-        android:text="Camera" />
+        android:text="Depth" />
 
     <Button
-        android:id="@+id/buttonProject"
+        android:id="@+id/buttonGray"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_above="@+id/buttonCamera"
+        android:layout_alignParentBottom="true"
+        android:layout_toStartOf="@+id/buttonDepth"
+        android:alpha="0.5"
+        android:text="Gray" />
+
+    <Button
+        android:id="@+id/buttonCalib"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_above="@+id/buttonDepth"
         android:layout_alignParentEnd="true"
         android:layout_alignParentRight="true"
         android:alpha="0.5"
-        android:text="Project" />
+        android:text="Calibration" />
 
     <Button
         android:id="@+id/buttonAdd"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_alignBaseline="@+id/buttonProject"
-        android:layout_alignBottom="@+id/buttonProject"
-        android:layout_toStartOf="@+id/buttonCamera"
+        android:layout_alignBaseline="@+id/buttonCalib"
+        android:layout_alignBottom="@+id/buttonCalib"
+        android:layout_toStartOf="@+id/buttonCalib"
         android:alpha="0.5"
         android:text="Add"
         android:visibility="gone"/>
 
     <Button
-        android:id="@+id/buttonCalib"
+        android:id="@+id/buttonCalc"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_alignBaseline="@+id/buttonAdd"
         android:layout_alignBottom="@+id/buttonAdd"
         android:layout_toStartOf="@+id/buttonAdd"
         android:alpha="0.5"
-        android:text="Calibrate"
+        android:text="Calculate"
         android:visibility="gone" />
 
     <Button
         android:id="@+id/buttonTest"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_above="@+id/buttonProject"
+        android:layout_above="@+id/buttonCalib"
         android:layout_alignParentEnd="true"
         android:layout_alignParentRight="true"
         android:alpha="0.5"
-        android:text="TEST" />
+        android:text="Test" />
 
     <TextView
         android:id="@+id/textViewDebug"
