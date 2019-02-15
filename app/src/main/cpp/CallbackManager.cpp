@@ -14,21 +14,25 @@ CallbackManager::CallbackManager(JavaVM* vm, jobject& obj, jmethodID& amplitudeC
     m_blobsCallbackID =  blobsCallbackID;
 }
 
-void CallbackManager::sendImageToJavaSide(const cv::Mat& image)
+void CallbackManager::sendImageToJavaSide(const cv::Mat& image, bool flip)
 {
     jint fill[image.rows * image.cols];
     if(image.type() == 16) // CV_8UC3
     {
         //  int color = (A & 0xff) << 24 | (R & 0xff) << 16 | (G & 0xff) << 8 | (B & 0xff);
         int k = 0;
+        if(flip) k = image.rows * image.cols -1 ;
+
         for (int i = 0; i < image.rows; i++)
         {
             const cv::Vec3b *ptr = image.ptr<cv::Vec3b>(i);
-            for (int j = 0; j < image.cols; j++, k++)
+            for (int j = 0; j < image.cols; j++)
             {
                 cv::Vec3b p = ptr[j];
                 int color = (255 & 0xff) << 24 | (p[2] & 0xff) << 16 | (p[1] & 0xff) << 8 | (p[0] & 0xff);
                 fill[k] = color;
+
+                k = flip ? k-1 : k+1;
             }
         }
     }
@@ -37,14 +41,17 @@ void CallbackManager::sendImageToJavaSide(const cv::Mat& image)
         cv::Mat norm;
         normalize(image, norm, 0, 255, cv::NORM_MINMAX, CV_8UC1);
         int k = 0;
+        if(flip) k = image.rows * image.cols -1 ;
         for (int i = 0; i < norm.rows; i++)
         {
             auto *ptr = norm.ptr<uint8_t>(i);
-            for (int j = 0; j < norm.cols; j++, k++)
+            for (int j = 0; j < norm.cols; j++)
             {
                 uint8_t p = ptr[j];
                 int color = (255 & 0xff) << 24 | (p & 0xff) << 16 | (p & 0xff) << 8 | (p & 0xff);
                 fill[k] = color;
+
+                k = flip ? k-1 : k+1;
             }
         }
     }

@@ -75,6 +75,7 @@ public class MainActivity extends Activity {
     public native void ChangeModeNative(int mode);
     public native boolean AddPointNative();
     public native void CalibrateNative();
+    public native void ToggleFlipNative();
 
     //broadcast receiver for user usb permission dialog
     private final BroadcastReceiver mUsbReceiver = new BroadcastReceiver() {
@@ -206,6 +207,13 @@ public class MainActivity extends Activity {
                 Log.i(LOG_TAG, "Mode changed: TEST");
                 buttonCalc.setVisibility(View.GONE);
                 buttonAdd.setVisibility(View.GONE);
+            }
+        });
+
+        findViewById(R.id.buttonFlip).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                ToggleFlipNative();
             }
         });
 
@@ -391,6 +399,7 @@ public class MainActivity extends Activity {
             x = descriptors[i];
             y = descriptors[i+1];
             canvas.drawCircle(x, y, 40, white);
+            canvas.drawCircle(x, y, 5, white);
         }
 
         runOnUiThread(new Runnable() {

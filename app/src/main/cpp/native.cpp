@@ -224,6 +224,11 @@ void Java_com_esalman17_calibrator_MainActivity_CalibrateNative (JNIEnv *env, jo
     calibrator.calibrate();
 }
 
+void Java_com_esalman17_calibrator_MainActivity_ToggleFlipNative (JNIEnv *env, jobject thiz)
+{
+    calibrator.toggleFlip();
+}
+
 #ifdef __cplusplus
 }
 #endif

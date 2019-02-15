@@ -24,6 +24,7 @@ public:
     // Public methods
     void setLensParameters (LensParameters lensParameters);
     void setCamera(int width, int height, double v_fov, double h_fov);
+    void toggleFlip();
 
     // Public variables
     CallbackManager callbackManager;
@@ -38,6 +39,7 @@ protected:
 
     virtual void onNewData (const DepthData *data);
     void updateMaps(const DepthData* data, bool flip=false);
+    void setFlip(bool flip);
 
     Mat xyzMap, confMap, grayImage;
     Mat outputImage; // to visualize with CV_8UC1
@@ -46,5 +48,6 @@ protected:
 
     Device camera;
     mutex flagMutex;
+    bool flip = false;
 };
 

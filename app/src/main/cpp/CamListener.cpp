@@ -20,6 +20,18 @@ void CamListener::setCamera(int width, int height, double v_fov, double h_fov)
     LOGD("Camera setted: w,h  %d , %d \t fov = %.2f , %.2f", width, height,v_fov,h_fov);
 }
 
+void CamListener::setFlip(bool f)
+{
+    lock_guard<mutex> lock (flagMutex);
+    flip = f;
+}
+
+void CamListener::toggleFlip()
+{
+    if(flip) setFlip(false);
+    else setFlip(true);
+}
+
 
 void CamListener::setLensParameters (LensParameters lensParameters)
 {
@@ -58,9 +70,10 @@ void CamListener::onNewData (const DepthData *data)
     vector<Mat> channels(3);
     split(xyzMap, channels);
     applyColorMap(channels[2], outputImage, COLORMAP_JET);
-    callbackManager.sendImageToJavaSide(outputImage);
+    callbackManager.sendImageToJavaSide(outputImage, flip);
 }
 
+// not use this flip, it messes the lens params, flip the image while sending to java side
 void CamListener::updateMaps(const DepthData* data, bool flip)
 {
     int k;

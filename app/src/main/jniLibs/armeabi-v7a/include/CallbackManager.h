@@ -12,7 +12,7 @@ public:
     CallbackManager(JavaVM* vm, jobject& obj, jmethodID& amplitudeCallbackID, jmethodID& shapeDetectedCallbackID);
 
     // It sends whole image to java
-    void sendImageToJavaSide(const cv::Mat& image);
+    void sendImageToJavaSide(const cv::Mat& image, const bool flip = false);
 
     // It sends center of the detected retro as array
     void onShapeDetected(const std::vector<int> & arr);

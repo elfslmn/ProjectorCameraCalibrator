@@ -68,7 +68,7 @@ void Calibrator::onNewData (const DepthData *data)
         channels[2].at<float>(0,0) = MAX_RANGE;
         normalize(channels[2], channels[2], 0, 255, NORM_MINMAX, CV_8UC1);
         applyColorMap(channels[2], outputImage, COLORMAP_JET);
-        callbackManager.sendImageToJavaSide(outputImage);
+        callbackManager.sendImageToJavaSide(outputImage, flip);
         return;
     }
 
@@ -84,7 +84,7 @@ void Calibrator::onNewData (const DepthData *data)
         {
             drawContours( outputImage, retro_contours, i, Scalar(255,0,255),-1,8);
         }
-        callbackManager.sendImageToJavaSide(outputImage);
+        callbackManager.sendImageToJavaSide(outputImage, flip);
     }
     else if (currentMode == CALIBRATION){
         // Do nothing
@@ -309,6 +309,10 @@ Point2i Calibrator::convertCam2Pro(Point2i pp, float depth){
     int cpx = (double)pp.x * projector.width* x_scale / camera.width - x_offset - shiftx;
     int cpy = (double)pp.y * projector.height* y_scale / camera.height - y_offset - shifty;
 
+    if(flip){
+        cpx = projector.width - cpx;
+        cpy = projector.height - cpy;
+    }
 
     if(cpx > projector.width || cpx < 0 || cpy > projector.height || cpy < 0){
         LOGD("Point is outside of the projector view");
