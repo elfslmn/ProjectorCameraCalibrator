@@ -219,9 +219,21 @@ jboolean Java_com_esalman17_calibrator_MainActivity_AddPointNative (JNIEnv *env,
     return (jboolean)calibrator.saveCamPoint();
 }
 
-void Java_com_esalman17_calibrator_MainActivity_CalibrateNative (JNIEnv *env, jobject thiz)
+jdoubleArray Java_com_esalman17_calibrator_MainActivity_CalibrateNative (JNIEnv *env, jobject thiz)
 {
     calibrator.calibrate();
+    Vec4d calib = calibrator.getCalibration();
+
+    jdouble fill[4];
+    fill[0] = calib[0];
+    fill[1] = calib[1];
+    fill[2] = calib[2];
+    fill[3] = calib[3];
+
+    jdoubleArray doubleArray = env->NewDoubleArray(4);
+    env->SetDoubleArrayRegion (doubleArray, 0, 4, fill);
+
+    return doubleArray;
 }
 
 void Java_com_esalman17_calibrator_MainActivity_ToggleFlipNative (JNIEnv *env, jobject thiz)

@@ -24,25 +24,16 @@ class Calibrator : public CamListener{
 public:
     // Constructors
     Calibrator();
-    ~Calibrator();
-
-    string dataFolder = "data";
-    Vec4d calibration_result;
 
     enum Mode {UNKNOWN, DEPTH, GRAY, CALIBRATION, TEST};
-    Mode currentMode = UNKNOWN;
-
-    Device projector; //{1280, 720, 37.6*deg2rad, 21.76*deg2rad};
 
     //functions
-    void saveFrame(int frame);
+    void calibrate();
     bool saveCamPoint();
-    Vec4d calibrate();
-    Point2i convertCam2Pro(Point2i proj_point, float depth);
-
     void setProjector(int width, int height, double v_fov, double h_fov);
-    void saveCalibrationToFile(string filepath);
     void setMode(int i);
+    Vec4d getCalibration();
+    void setCalibration(double cx, double ax, double cy, double ay);
 
 
 private:
@@ -54,10 +45,15 @@ private:
     double x_offset, y_offset; // in pro. pixel
     vector<int> blobCenters;
 
+    Mode currentMode = UNKNOWN;
+    Device projector; //{1280, 720, 37.6*deg2rad, 21.76*deg2rad};
+    Vec4d calibration_result;
+
     void onNewData (const DepthData *data);
     pair<double, double> fitExponential(const vector<double> &x, vector<double> &y);
     pair<double, double> fitLinear(const vector<double> &x, const vector<double> &y);
     void undistortCamPoints();
+    Point2i convertCam2Pro(Point2i proj_point, float depth);
 
 };
 

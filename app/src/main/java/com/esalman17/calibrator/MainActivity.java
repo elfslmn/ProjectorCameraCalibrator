@@ -17,6 +17,7 @@ import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbManager;
 import android.icu.text.Normalizer2;
 import android.os.Bundle;
+import android.os.Environment;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
@@ -28,6 +29,11 @@ import android.view.Display;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.text.SimpleDateFormat;
+import java.util.Arrays;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
 
@@ -58,6 +64,8 @@ public class MainActivity extends Activity {
     Button buttonAdd, buttonCalc;
     TextView tvDebug;
 
+    SimpleDateFormat parser = new SimpleDateFormat("yyyy_MM_dd_HH_mm");
+
     boolean cam_opened, capturing=false;
 
     private static final String LOG_TAG = "MainActivity";
@@ -74,7 +82,7 @@ public class MainActivity extends Activity {
     public native void RegisterCallback();
     public native void ChangeModeNative(int mode);
     public native boolean AddPointNative();
-    public native void CalibrateNative();
+    public native double[] CalibrateNative();
     public native void ToggleFlipNative();
 
     //broadcast receiver for user usb permission dialog
@@ -235,7 +243,8 @@ public class MainActivity extends Activity {
         buttonCalc.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                CalibrateNative();
+                double[] calibration = CalibrateNative();
+                saveCalibrationResult(calibration);
             }
         });
 
@@ -408,8 +417,27 @@ public class MainActivity extends Activity {
                 mainImView.setImageBitmap(bmpPr);
             }
         });
+    }
 
+    private void saveCalibrationResult(double[] calibration){
+        File sdcard = Environment.getExternalStorageDirectory();
+        File dir = new File(sdcard.getAbsolutePath() + "/Calibrator/");
+        dir.mkdir();
 
+        File file = new File(dir, parser.format(new Date())+ ".txt");
+        try {
+            FileOutputStream out = new FileOutputStream(file);
+            out.write(Arrays.toString(calibration).getBytes());
+            out.flush();
+            out.close();
+            Log.d(LOG_TAG, "Results are saved into "+ file.getName());
+        }
+        catch (Exception e) {
+            Toast.makeText(MainActivity.this, "Calibration cannot be saved", Toast.LENGTH_LONG).show();
+            e.printStackTrace();
+            return;
+        }
+        Toast.makeText(MainActivity.this, "Calibration is saved", Toast.LENGTH_LONG).show();
     }
 
 

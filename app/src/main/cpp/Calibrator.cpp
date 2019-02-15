@@ -14,12 +14,6 @@ Calibrator::Calibrator()
     line(pattern, Point(50,0),Point(50,101),Scalar(255));
 }
 
-Calibrator::~Calibrator()
-{
-    //saveCalibrationToFile(dataFolder + "/cam_points.csv");
-    //LOGD("Calibrator is destroyed.");
-}
-
 void Calibrator::setMode(int i){
     lock_guard<mutex> lock (flagMutex);
     switch(i)
@@ -45,6 +39,15 @@ void Calibrator::setMode(int i){
             LOGD("Mode: UNKNOWN (%d)", i);
             break;
     }
+}
+
+Vec4d Calibrator::getCalibration(){
+    lock_guard<mutex> lock (flagMutex);
+    return calibration_result;
+}
+void Calibrator::setCalibration(double cx, double ax, double cy, double ay){
+    lock_guard<mutex> lock (flagMutex);
+    calibration_result = Vec4d(cx, ax, cy, ay);
 }
 
 void Calibrator::setProjector(int width, int height, double v_fov, double h_fov)
@@ -172,8 +175,8 @@ void Calibrator::undistortCamPoints()
 // y_shift = cy*e^(ay*z)
 // z -> in x axis
 // x or y -> in y axis
-// return { cx, ax, cy, ay }
-Vec4d Calibrator::calibrate()
+// calibration_result = { cx, ax, cy, ay }
+void Calibrator::calibrate()
 {
     undistortCamPoints();
     //scale = sin(camFov/2) / sin(projFov/2)
@@ -213,7 +216,6 @@ Vec4d Calibrator::calibrate()
     file << " Projector: " << projector.width <<" , "<<projector.height<<" , "<<projector.vertical_fov<<" , "<<projector.horizontal_fov << endl;
     file.close();*/
 
-    return calibration_result;
 }
 
 // y = c*e^(a*x)
