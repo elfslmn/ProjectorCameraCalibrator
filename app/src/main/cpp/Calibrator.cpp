@@ -45,9 +45,10 @@ Vec4d Calibrator::getCalibration(){
     lock_guard<mutex> lock (flagMutex);
     return calibration_result;
 }
-void Calibrator::setCalibration(double cx, double ax, double cy, double ay){
+void Calibrator::setCalibration(double* arr){
     lock_guard<mutex> lock (flagMutex);
-    calibration_result = Vec4d(cx, ax, cy, ay);
+    calibration_result = Vec4d(arr[0], arr[1], arr[2], arr[3]);
+    LOGD("Calibration loaded = %f %f %f %f", calibration_result[0], calibration_result[1],calibration_result[2],calibration_result[3]);
 }
 
 void Calibrator::setProjector(int width, int height, double v_fov, double h_fov)
@@ -56,6 +57,12 @@ void Calibrator::setProjector(int width, int height, double v_fov, double h_fov)
     projector.height = height;
     projector.vertical_fov = v_fov * deg2rad;
     projector.horizontal_fov = h_fov * deg2rad;
+    if(camera.width != 0){
+        x_scale = sin(camera.vertical_fov/2) / sin(projector.vertical_fov/2);
+        y_scale = sin(camera.horizontal_fov/2) / sin(projector.horizontal_fov/2);
+        x_offset = (double)projector.width * (x_scale -1) / 2 ;
+        y_offset = (double)projector.height * (y_scale -1) / 2;
+    }
     LOGD("Projector setted: w,h  %d , %d \t fov = %.2f , %.2f", width, height,v_fov,h_fov);
 }
 
@@ -182,7 +189,6 @@ void Calibrator::calibrate()
     //scale = sin(camFov/2) / sin(projFov/2)
     x_scale = sin(camera.vertical_fov/2) / sin(projector.vertical_fov/2);
     y_scale = sin(camera.horizontal_fov/2) / sin(projector.horizontal_fov/2);
-
     x_offset = (double)projector.width * (x_scale -1) / 2 ;
     y_offset = (double)projector.height * (y_scale -1) / 2;
 
@@ -296,12 +302,7 @@ pair<double, double> Calibrator::fitLinear(const vector<double> &x, const vector
 }
 
 Point2i Calibrator::convertCam2Pro(Point2i pp, float depth){
-    if(x_scale == 0){ // No calibration calculated yet.
-        LOGE("No calibration found");
-        return Point2i(-1,-1);
-    }
-
-    if( pp.x<0 || pp.y<0 || depth <= 0){ // x and y in pixel
+    if( pp.x<0 || pp.y<0 || depth <= 0){ // x and y in pixel, depth in cm
         return Point2i(-1,-1);
     }
 

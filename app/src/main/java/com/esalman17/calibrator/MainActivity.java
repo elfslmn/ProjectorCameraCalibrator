@@ -16,6 +16,7 @@ import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbManager;
 import android.icu.text.Normalizer2;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
 import android.util.Log;
@@ -29,8 +30,12 @@ import android.view.Display;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.FileReader;
+import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Date;
@@ -76,6 +81,8 @@ public class MainActivity extends Activity {
 
     Mode currentMode = Mode.GRAY;
 
+    private static final int PICKFILE_REQUEST_CODE = 1;
+
     public native int[] OpenCameraNative(int fd, int vid, int pid);
     public native boolean StartCaptureNative();
     public native boolean StopCaptureNative();
@@ -84,6 +91,7 @@ public class MainActivity extends Activity {
     public native boolean AddPointNative();
     public native double[] CalibrateNative();
     public native void ToggleFlipNative();
+    public native void LoadCalibrationNative(double[] calibration);
 
     //broadcast receiver for user usb permission dialog
     private final BroadcastReceiver mUsbReceiver = new BroadcastReceiver() {
@@ -225,6 +233,17 @@ public class MainActivity extends Activity {
             }
         });
 
+        findViewById(R.id.buttonLoad).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+                Uri uri = Uri.parse(Environment.getExternalStorageDirectory().getAbsolutePath()
+                        + "/Calibrator/");
+                intent.setDataAndType(uri, "text/txt");
+                startActivityForResult(Intent.createChooser(intent,"Open folder"), PICKFILE_REQUEST_CODE);
+            }
+        });
+
         buttonAdd = findViewById(R.id.buttonAdd);
         buttonAdd.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -290,6 +309,36 @@ public class MainActivity extends Activity {
         super.onDestroy();
     }
 
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        switch (requestCode) {
+            case PICKFILE_REQUEST_CODE:
+                if (resultCode == RESULT_OK) {
+                    String path = data.getData().getPath();
+                    Log.d(LOG_TAG, "Calibration file loaded: " + path);
+                    Toast.makeText(this, "Calibration file loaded:" + path, Toast.LENGTH_SHORT).show();
+                    File file = new File(path);
+                    try {
+                        BufferedReader br = new BufferedReader(new FileReader(file));
+                        String line;
+                        double[] calibration = new double[4];
+                        int i = 0;
+                        while ((line = br.readLine()) != null) {
+                            calibration[i++] = Double.parseDouble(line);
+                            if(i == 4) break;
+                        }
+                        Log.d(LOG_TAG, "Calibration array = "+ Arrays.toString(calibration));
+                        LoadCalibrationNative(calibration);
+                    } catch (FileNotFoundException e) {
+                        e.printStackTrace();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+                break;
+        }
+    }
+
     public void openCamera() {
         Log.d(LOG_TAG, "openCamera");
 
@@ -331,6 +380,7 @@ public class MainActivity extends Activity {
         }
         if (!found) {
             Log.e(LOG_TAG, "No royale device found!!!");
+            Toast.makeText(getApplicationContext() ,"No camera found", Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -427,7 +477,9 @@ public class MainActivity extends Activity {
         File file = new File(dir, parser.format(new Date())+ ".txt");
         try {
             FileOutputStream out = new FileOutputStream(file);
-            out.write(Arrays.toString(calibration).getBytes());
+            for(double d: calibration){
+                out.write((d+"\n").getBytes());
+            }
             out.flush();
             out.close();
             Log.d(LOG_TAG, "Results are saved into "+ file.getName());

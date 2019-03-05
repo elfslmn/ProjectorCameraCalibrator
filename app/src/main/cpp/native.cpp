@@ -21,6 +21,7 @@ using namespace cv;
 // this represents the main camera device object
 static std::unique_ptr<ICameraDevice> cameraDevice;
 Calibrator calibrator; // It is a child of IDepthDataListener
+double* calibration = nullptr;
 
 jintArray Java_com_esalman17_calibrator_MainActivity_OpenCameraNative (JNIEnv *env, jobject thiz, jint fd, jint vid, jint pid)
 {
@@ -112,6 +113,9 @@ jintArray Java_com_esalman17_calibrator_MainActivity_OpenCameraNative (JNIEnv *e
     // Set camera and projector values for calibration
     calibrator.setCamera(cam_width, cam_height, 62, 45);
     calibrator.setProjector(1280, 720, 46.4, 24.2);    // TODO make it generic
+    if(calibration){
+        calibrator.setCalibration(calibration);
+    }
 
     // register a data listener
     ret = cameraDevice->registerDataListener (&calibrator);
@@ -239,6 +243,12 @@ jdoubleArray Java_com_esalman17_calibrator_MainActivity_CalibrateNative (JNIEnv 
 void Java_com_esalman17_calibrator_MainActivity_ToggleFlipNative (JNIEnv *env, jobject thiz)
 {
     calibrator.toggleFlip();
+}
+
+void Java_com_esalman17_calibrator_MainActivity_LoadCalibrationNative (JNIEnv *env, jobject thiz, jdoubleArray arr)
+{
+    calibration = env->GetDoubleArrayElements( arr,0);
+    calibrator.setCalibration(calibration);
 }
 
 #ifdef __cplusplus

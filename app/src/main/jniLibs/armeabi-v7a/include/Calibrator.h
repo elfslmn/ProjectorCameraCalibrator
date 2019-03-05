@@ -33,7 +33,7 @@ public:
     void setProjector(int width, int height, double v_fov, double h_fov);
     void setMode(int i);
     Vec4d getCalibration();
-    void setCalibration(double cx, double ax, double cy, double ay);
+    void setCalibration(double* arr);
 
 
 private:
