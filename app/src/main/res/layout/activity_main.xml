@@ -82,7 +82,7 @@
         android:layout_alignParentEnd="true"
         android:layout_alignParentRight="true"
         android:alpha="0.5"
-        android:text="Flip" />
+        android:text="FlipCam" />
 
     <Button
         android:id="@+id/buttonLoad"

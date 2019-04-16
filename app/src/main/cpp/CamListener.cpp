@@ -74,7 +74,7 @@ void CamListener::onNewData (const DepthData *data)
 }
 
 // not use this flip, it messes the lens params, flip the image while sending to java side
-void CamListener::updateMaps(const DepthData* data, bool flip)
+void CamListener::updateMaps(const DepthData* data)
 {
     int k;
     if(flip) k = camera.height * camera.width -1 ;
