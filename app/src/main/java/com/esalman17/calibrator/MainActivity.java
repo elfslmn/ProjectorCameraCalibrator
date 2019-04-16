@@ -78,6 +78,7 @@ public class MainActivity extends Activity {
 
     int[] resolution;
     Point displaySize, camRes;
+    boolean camFlip = true;
 
     Mode currentMode = Mode.GRAY;
 
@@ -230,6 +231,7 @@ public class MainActivity extends Activity {
             @Override
             public void onClick(View view) {
                 ToggleFlipNative();
+                camFlip = !camFlip;
             }
         });
 
@@ -474,7 +476,7 @@ public class MainActivity extends Activity {
         File dir = new File(sdcard.getAbsolutePath() + "/Calibrator/");
         dir.mkdir();
 
-        File file = new File(dir, parser.format(new Date())+ ".txt");
+        File file = new File(dir, parser.format(new Date())+ (camFlip ? "_flipped":"")  +".txt");
         try {
             FileOutputStream out = new FileOutputStream(file);
             for(double d: calibration){

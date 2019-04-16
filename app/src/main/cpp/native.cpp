@@ -101,6 +101,13 @@ jintArray Java_com_esalman17_calibrator_MainActivity_OpenCameraNative (JNIEnv *e
         LOGI ("    %s", opModes.at (i).c_str());
     }
 
+    // Set camera and projector values for calibration
+    calibrator.setCamera(cam_width, cam_height, 62, 45);
+    calibrator.setProjector(1280, 720, 46.4, 24.2);    // TODO make it generic
+    if(calibration){
+        calibrator.setCalibration(calibration);
+    }
+
     LensParameters lensParams;
     ret = cameraDevice->getLensParameters (lensParams);
     if (ret != CameraStatus::SUCCESS)
@@ -108,13 +115,6 @@ jintArray Java_com_esalman17_calibrator_MainActivity_OpenCameraNative (JNIEnv *e
         LOGE ("Failed to get lens parameters, CODE %d", (int) ret);
     }else{
         calibrator.setLensParameters (lensParams);
-    }
-
-    // Set camera and projector values for calibration
-    calibrator.setCamera(cam_width, cam_height, 62, 45);
-    calibrator.setProjector(1280, 720, 46.4, 24.2);    // TODO make it generic
-    if(calibration){
-        calibrator.setCalibration(calibration);
     }
 
     // register a data listener

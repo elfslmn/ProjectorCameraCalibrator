@@ -39,6 +39,8 @@ void CamListener::setLensParameters (LensParameters lensParameters)
     // (fx   0    cx)
     // (0    fy   cy)
     // (0    0    1 )
+    lensParameters.principalPoint.first = camera.width - lensParameters.principalPoint.first; // due to camera flip
+    lensParameters.principalPoint.second = camera.height - lensParameters.principalPoint.second;
     cameraMatrix = (Mat1d (3, 3) << lensParameters.focalLength.first, 0, lensParameters.principalPoint.first,
             0, lensParameters.focalLength.second, lensParameters.principalPoint.second,
             0, 0, 1);
@@ -74,7 +76,7 @@ void CamListener::onNewData (const DepthData *data)
 }
 
 // not use this flip, it messes the lens params, flip the image while sending to java side
-void CamListener::updateMaps(const DepthData* data, bool flip)
+void CamListener::updateMaps(const DepthData* data)
 {
     int k;
     if(flip) k = camera.height * camera.width -1 ;

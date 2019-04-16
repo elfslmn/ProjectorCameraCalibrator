@@ -38,7 +38,7 @@ protected:
 
 
     virtual void onNewData (const DepthData *data);
-    void updateMaps(const DepthData* data, bool flip=false);
+    void updateMaps(const DepthData* data);
     void setFlip(bool flip);
 
     Mat xyzMap, confMap, grayImage;
@@ -48,6 +48,6 @@ protected:
 
     Device camera;
     mutex flagMutex;
-    bool flip = false;
+    bool flip = true;
 };
 
